@@ -503,7 +503,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     smartCompletion: true,
     suggestionPopup: true,
     inlineHint: true,
-    aiTranscription: true,
+    aiTranscription: false,
     highlightEnabled: true,
     cursorBlink: true,
     ctrlWheelZoom: true,

@@ -2686,6 +2686,9 @@ func (a *App) SetupCredentials(mode, masterPassword string) error {
 	if a.credentialStore == nil {
 		return errors.New("credential store not initialized")
 	}
+	if mode == credentials.ModeKeychain {
+		return errors.New("system keychain encryption is disabled; use a master password")
+	}
 	return a.credentialStore.Setup(mode, masterPassword)
 }
 
@@ -2706,19 +2709,7 @@ func (a *App) SwitchCredentialMode(targetMode, masterPassword string) error {
 	var newKey, newSalt []byte
 	switch targetMode {
 	case credentials.ModeKeychain:
-		// Switching away from master-password removes a protection layer, so
-		// require the current master password once — the same verification
-		// ChangeMasterPassword does before re-keying.
-		if meta, _ := credentials.ReadMeta(a.dataDir); meta != nil && meta.Mode == credentials.ModeMasterPassword {
-			if string(sync.DeriveKey(masterPassword, meta.Salt)) != string(oldKey) {
-				return errors.New("master password incorrect")
-			}
-		}
-		var err error
-		newKey, err = randomKey32()
-		if err != nil {
-			return err
-		}
+		return errors.New("system keychain encryption is disabled; use a master password")
 	case credentials.ModeMasterPassword:
 		if masterPassword == "" {
 			return errors.New("master password required")

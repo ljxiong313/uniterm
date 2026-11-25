@@ -286,9 +286,7 @@
       </div>
 
       <!-- 本地数据: where the configuration lives (data dir) and how it is
-           protected (encryption mode, master password). Desktop-only tab — on
-           mobile the data dir is OS-managed and keychain encryption is the
-           only supported mode, so nothing is configurable. -->
+           protected by the portable master-password encryption mode. -->
       <div v-if="settingsStore.activeCategory === 'local-data'" class="settings-section">
         <h2 class="section-title">{{ t('settings.localData') }}</h2>
         <div class="settings-group">
@@ -311,12 +309,6 @@
             <div class="setting-control">
               <el-select v-model="modeSelect" @change="onModeChange" popper-class="mode-select-popper" style="width: 100%">
                 <el-option v-if="!credStore.status.mode" :label="t('config.notConfigured')" value="" disabled />
-                <el-option :label="t('encrypt.keychain')" value="keychain">
-                  <div class="mode-option">
-                    <div class="mode-option-title">{{ t('encrypt.keychain') }}</div>
-                    <div class="mode-option-desc">{{ t('config.switchKeychainHint') }}</div>
-                  </div>
-                </el-option>
                 <el-option :label="t('encrypt.masterPassword')" value="master-password">
                   <div class="mode-option">
                     <div class="mode-option-title">{{ t('encrypt.masterPassword') }}</div>
@@ -663,7 +655,7 @@
               <div class="setting-desc">{{ t('settings.aiTranscriptionDesc') }}</div>
             </div>
             <div class="setting-control">
-              <el-switch :model-value="settingsStore.settings.terminal.aiTranscription ?? true" @update:model-value="(v: boolean) => { settingsStore.settings.terminal.aiTranscription = v; settingsStore.save() }" />
+              <el-switch :model-value="settingsStore.settings.terminal.aiTranscription ?? false" @update:model-value="(v: boolean) => { settingsStore.settings.terminal.aiTranscription = v; settingsStore.save() }" />
             </div>
           </div>
 
@@ -1724,22 +1716,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog append-to-body v-model="showVerifyMaster" :title="t('config.verifyMasterTitle')" width="27.5rem">
-      <el-form label-width="6.25rem" class="settings-form" @submit.prevent="doVerifyMaster">
-        <el-form-item :label="t('config.verifyCurrentPassword')">
-          <div class="verify-field">
-            <el-input v-model="verifyPw" type="password" show-password />
-            <div class="switch-mode-hint">{{ t('config.verifyCurrentHint') }}</div>
-          </div>
-        </el-form-item>
-      </el-form>
-      <div v-if="verifyError" class="form-error">{{ verifyError }}</div>
-      <template #footer>
-        <el-button @click="showVerifyMaster = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="verifySubmitting" @click="doVerifyMaster">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog append-to-body v-model="showChangePassword" :title="t('config.changePassword')" width="27.5rem">
       <el-form label-width="6.25rem" class="settings-form" @submit.prevent="doChangePassword">
         <el-form-item :label="t('config.oldPassword')">
@@ -1843,7 +1819,6 @@ const detectedEditors = ref<{ label: string; value: string }[]>([])
 const credStore = useCredentialStore()
 const dataDirVisible = ref(false)
 const showSetupMaster = ref(false)
-const showVerifyMaster = ref(false)
 const showChangePassword = ref(false)
 
 const dataDirTypeLabel = computed(() => {
@@ -1878,12 +1853,10 @@ function onModeChange(val: string) {
   if (!val || val === credStore.status.mode) return
   if (credStore.status.mode === '') {
     // No credentials configured yet: no existing password to verify.
-    if (val === 'keychain') doSetupKeychain()
-    else showSetupMaster.value = true
+    if (val === 'master-password') showSetupMaster.value = true
     return
   }
   if (val === 'master-password') showSetupMaster.value = true
-  else showVerifyMaster.value = true
 }
 
 // keychain → master-password (or first-run master-password): configure a new password.
@@ -1904,32 +1877,6 @@ async function doSetupMaster() {
     msg.success(t('config.switchDone'))
   } catch (e: any) { setupError.value = backendErrorText(e) }
   finally { setupSubmitting.value = false }
-}
-
-// master-password → keychain: verify the current master password once.
-const verifyPw = ref('')
-const verifyError = ref(''); const verifySubmitting = ref(false)
-watch(showVerifyMaster, (v) => { if (v) { verifyPw.value = ''; verifyError.value = '' } })
-
-async function doVerifyMaster() {
-  if (verifySubmitting.value) return
-  verifyError.value = ''
-  if (!verifyPw.value) { verifyError.value = t('encrypt.passwordRequired'); return }
-  verifySubmitting.value = true
-  try {
-    await credStore.switchMode('keychain', verifyPw.value)
-    showVerifyMaster.value = false
-    msg.success(t('config.switchDone'))
-  } catch (e: any) { verifyError.value = backendErrorText(e) }
-  finally { verifySubmitting.value = false }
-}
-
-// first-run / unconfigured → keychain: no password needed.
-async function doSetupKeychain() {
-  try {
-    await credStore.setup('keychain', '')
-    msg.success(t('config.switchDone'))
-  } catch (e: any) { msg.error(backendErrorText(e)) }
 }
 
 const oldPw = ref(''); const newPw = ref(''); const newPw2 = ref('')

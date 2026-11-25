@@ -11,22 +11,7 @@
     <p v-if="existingSecrets > 0" class="encrypt-hint">{{ t('encrypt.existing', { n: existingSecrets }) }}</p>
     <p v-if="webServerMode" class="encrypt-hint">{{ t('web.encryptHint') }}</p>
     <el-form label-width="7.5rem" class="encrypt-form" @submit.prevent="onConfirm">
-      <el-form-item v-if="!webServerMode" :label="t('config.encryption')">
-        <el-select v-model="mode" popper-class="mode-select-popper" style="width: 100%">
-          <el-option :label="t('encrypt.keychain')" value="keychain">
-            <div class="mode-option">
-              <div class="mode-option-title">{{ t('encrypt.keychain') }}</div>
-              <div class="mode-option-desc">{{ t('config.switchKeychainHint') }}</div>
-            </div>
-          </el-option>
-          <el-option :label="t('encrypt.masterPassword')" value="master-password">
-            <div class="mode-option">
-              <div class="mode-option-title">{{ t('encrypt.masterPassword') }}</div>
-              <div class="mode-option-desc">{{ t('config.switchMasterHint') }}</div>
-            </div>
-          </el-option>
-        </el-select>
-      </el-form-item>
+      <p class="encrypt-hint">{{ t('encrypt.masterPassword') }}</p>
       <template v-if="mode === 'master-password'">
         <el-form-item :label="t('encrypt.password')">
           <el-input v-model="pw" type="password" show-password />
@@ -49,7 +34,6 @@ import { ref, watch } from 'vue'
 import { useI18n } from '../i18n'
 import { QuitApp } from '../../bindings/github.com/ys-ll/uniterm/app'
 import { useCredentialStore } from '../stores/credentialStore'
-import { isMobilePlatform } from '../utils/platform'
 import { isWebServerMode } from '../services/webSftpBridge'
 
 const props = defineProps<{ visible: boolean; existingSecrets: number }>()
@@ -61,39 +45,19 @@ const cred = useCredentialStore()
 // only master-password setup is offered there.
 const webServerMode = ref(false)
 isWebServerMode().then((v) => { webServerMode.value = v })
-const mode = ref<'keychain' | 'master-password'>(webServerMode.value ? 'master-password' : 'keychain')
+const mode = ref<'master-password'>('master-password')
 const pw = ref('')
 const pw2 = ref('')
 const submitting = ref(false)
 const errorMsg = ref('')
 
-// Mobile (android/ios) only supports the system keychain — skip the picker and
-// set it up directly. Covers every path that opens this dialog: first run,
-// keychain-lost recovery and manual reset. On failure the dialog stays open
-// showing the error.
-const isMobile = isMobilePlatform()
-
-async function autoKeychainSetup() {
-  submitting.value = true
-  try {
-    await cred.setup('keychain')
-    emit('done')
-    emit('update:visible', false)
-  } catch (e: any) {
-    errorMsg.value = e?.message || String(e)
-  } finally {
-    submitting.value = false
-  }
-}
-
 // Reset on every open so a previously-entered password isn't shown again.
 watch(() => props.visible, (v) => {
   if (v) {
-    mode.value = webServerMode.value ? 'master-password' : 'keychain'
+    mode.value = 'master-password'
     pw.value = ''
     pw2.value = ''
     errorMsg.value = ''
-    if (isMobile) void autoKeychainSetup()
   }
 })
 
